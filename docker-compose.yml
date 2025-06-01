@@ -10,3 +10,5 @@ services:
     restart: unless-stopped
     environment:
       - NODE_ENV=production
+      - DEBUG=puppeteer:* # show Puppeteer internals
+      - WWEBJS_LOGGING=debug # show whatsapp-web.js internals
