@@ -1,13 +1,11 @@
 // index.js
-const { Client, LocalAuth, MessageMedia } = require("whatsapp-web.js");
+const { Client, LocalAuth } = require("whatsapp-web.js");
 const qrcode = require("qrcode-terminal");
 
-// 1) Create a client that uses LocalAuth. 
-//    `clientId: "bot"` means sessions live in `.wwebjs_auth/client.bot/`
 const client = new Client({
   authStrategy: new LocalAuth({ clientId: "bot" }),
   puppeteer: {
-    headless: true,                 // run in headless mode
+    headless: true,
     args: [
       "--no-sandbox",
       "--disable-setuid-sandbox",
@@ -21,65 +19,48 @@ const client = new Client({
   }
 });
 
-// 2) When the loading screen is shown in WhatsApp Web
-client.on("loading_screen", (percent, message) => {
-  console.log(`[LOADING_SCREEN] ${percent}% - ${message}`);
-});
-
-// 3) When the QR is generated, print it in the terminal
+// 1) QR, authenticated, etc., exactly as before:
 client.on("qr", (qr) => {
   console.log("[QR RECEIVED]");
   qrcode.generate(qr, { small: true });
 });
+client.on("authenticated", () => console.log("[AUTHENTICATED]"));
+client.on("auth_failure", (msg) => console.error("[AUTH FAILURE]", msg));
+client.on("disconnected", (reason) => console.log("[DISCONNECTED]", reason));
 
-// 4) When whatsapp-web.js has authenticated successfully
-client.on("authenticated", () => {
-  console.log("[AUTHENTICATED]");
-});
-
-// 5) If authentication fails (e.g., invalid session), you'll get this event
-client.on("auth_failure", (message) => {
-  console.error("[AUTH FAILURE]", message);
-  // If it fails, you might delete `./session` and restart the container
-});
-
-// 6) Right before the client is ready to send/receive messages
+// 2) On “ready”, wait 500ms before allowing any message replies:
 client.on("ready", () => {
   console.log("[CLIENT IS READY]");
-  // Only now do we start listening for `message` events
+  console.log("→ Waiting 500ms to let WWebJS finish injecting…");
+
+  // Only after 500ms do we allow the bot to process messages.
+  setTimeout(() => {
+    console.log("→ Now message handler is active.");
+    client.on("message", handleMessage);
+  }, 500);
 });
 
-// 7) A catch-all event for when the page crashes or Puppeteer context is lost
-client.on("disconnected", (reason) => {
-  console.log("[DISCONNECTED]", reason);
-});
-
-// 8) The “message” event will only fire once “ready” has been emitted
-client.on("message", async (message) => {
+// 3) Extracted message handler:
+async function handleMessage(message) {
   try {
-    // Log everything we received
-    console.log(`[MSG RECEIVED] ${message.from}: ${message.body}`);
-
-    // ➔ SAFETY CHECK: ensure both from & body are defined
+    // Safety check: skip if missing chat ID or text
     if (!message.from || !message.body) {
-      console.warn("[WARN] message.from or message.body was undefined");
+      console.warn("[WARN] message.from or message.body undefined, skipping.");
       return;
     }
 
-    // Sample logic: if someone writes “hi” (case-insensitive), reply “Hello!”
+    console.log(`[MSG RECEIVED] ${message.from}: ${message.body}`);
+
     if (message.body.trim().toLowerCase() === "hi") {
       console.log(`[REPLYING] to ${message.from} → "Hello!"`);
       await message.reply("Hello!");
-      console.log(`[REPLIED] ✅`);
+      console.log(`[REPLIED] Success.`);
     }
 
-    // You can add more logic here (e.g. check `message.body.startsWith('!echo ')`, etc.)
-
+    // …any other commands…
   } catch (err) {
-    // If sendMessage fails, log the full error stack so you know exactly why
     console.error("[ERROR in message handler]", err);
   }
-});
+}
 
-// 9) Finally, start the client
 client.initialize();
