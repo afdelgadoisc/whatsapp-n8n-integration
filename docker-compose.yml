@@ -1,0 +1,12 @@
+version: '3.8'
+
+services:
+  whatsapp-n8n-integration:
+    build: .
+    container_name: whatsapp-n8n-integration
+    volumes:
+      # Persist the auth/session data between restarts
+      - ./session:/usr/src/app/.wwebjs_auth
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
