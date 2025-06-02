@@ -7,6 +7,6 @@
   },
   "dependencies": {
     "qrcode-terminal": "^0.12.0",
-    "whatsapp-web.js": "git+https://github.com/rodrigooliveira87/whatsapp-web.js.git"
+    "whatsapp-web.js": "^1.29.0"
   }
 }
