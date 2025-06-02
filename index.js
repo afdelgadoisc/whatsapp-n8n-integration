@@ -33,21 +33,41 @@ client.on("ready", () => {
   client.on("message", handleMessageSafely);
 });
 
-// Helper function: checks if window.WWebJS exists in the page
-async function wwebjsReady() {
+/**
+ * Detects the Puppeteer Page object on the running client instance.
+ * Depending on Whatsapp-Web.js version, it might be under:
+ *   - client.page
+ *   - client.pupPage       (in some v2.x builds)
+ *   - client.puppeteer.page
+ */
+function getPuppeteerPage(client) {
+  if (client.page) return client.page;                    // some versions expose directly
+  if (client.pupPage) return client.pupPage;              // other versions call it pupPage
+  if (client.puppeteer && client.puppeteer.page) {
+    return client.puppeteer.page;                         // classic “puppeteer.page”
+  }
+  return null;
+}
+
+/**
+ * Evaluates inside the browser: “Is window.WWebJS defined?”
+ */
+async function wwebjsReady(client) {
+  const page = getPuppeteerPage(client);
+  if (!page) return false;
+
   try {
-    // 'client.pupeteer.page' is the Puppeteer Page instance under whatsapp-web.js
-    return await client.pupeteer.page.evaluate(() => {
+    return await page.evaluate(() => {
       return typeof window.WWebJS !== "undefined";
     });
   } catch (e) {
+    // If evaluate throws (e.g. page isn’t loaded yet), assume not ready
     return false;
   }
 }
 
 // A wrapper around the real message handler that waits for WWebJS
 async function handleMessageSafely(message) {
-  // 1) skip any messages without a valid ID or body
   if (!message.from || !message.body) {
     console.warn("[WARN] Missing from/body, skipping.");
     return;
@@ -55,31 +75,33 @@ async function handleMessageSafely(message) {
 
   console.log(`[MSG RECEIVED] ${message.from}: ${message.body}`);
 
-  // 2) Wait until window.WWebJS is available (poll every 100 ms, max 2 seconds)
+  // Poll for WWebJS availability (max 20 tries × 250ms = 5 seconds)
   let tries = 0;
-  while (tries < 20) {
-    const ready = await wwebjsReady();
+  const maxTries = 20;
+  const delayMs = 250;
+  let ready = false;
+
+  while (tries < maxTries) {
+    ready = await wwebjsReady(client);
     if (ready) break;
-    await new Promise((r) => setTimeout(r, 100));
+    await new Promise((r) => setTimeout(r, delayMs));
     tries++;
   }
 
-  // 3) If it never became ready, bail out with a log
-  if (tries >= 20) {
+  if (!ready) {
     console.error(
-      "[ERROR] window.WWebJS never became available after 2s. Skipping reply."
+      `[ERROR] window.WWebJS never became available after ${maxTries * delayMs}ms. Skipping reply.`
     );
     return;
   }
 
-  // 4) Now it’s safe to reply
   if (message.body.trim().toLowerCase() === "hi") {
     console.log(`[REPLYING] to ${message.from} → "Hello!"`);
     try {
       await message.reply("Hello!");
       console.log("[REPLIED] Success.");
-    } catch (err) {
-      console.error("[ERROR sending reply]", err);
+    } catch (e) {
+      console.error("[ERROR sending reply]", e);
     }
   }
 }
