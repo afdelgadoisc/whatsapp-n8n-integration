@@ -78,12 +78,7 @@ client.on("ready", () => {
   client.on("message", handleMessageSafely);
 });
 
-/**
- * A wrapper around the real message handler that waits for WWebJS.sendMessage
- * and then inserts a small extra delay before actually sending.
- */
 async function handleMessageSafely(message) {
-  // 1) Skip if chat ID or text is missing
   if (!message.from || !message.body) {
     console.warn("[WARN] Missing from/body, skipping.");
     return;
@@ -91,9 +86,9 @@ async function handleMessageSafely(message) {
 
   console.log(`[MSG RECEIVED] ${message.from}: ${message.body}`);
 
-  // 2) Poll for up to ~5 seconds (20 tries × 250ms) waiting for sendMessage
+  // Poll up to ~5 seconds for sendMessage to show up
   let tries = 0;
-  const maxTries = 20; // 20 × 250ms = 5000ms total
+  const maxTries = 20;   // 20 × 250ms = 5000ms total
   const delayMs = 250;
   let ready = false;
 
@@ -113,10 +108,34 @@ async function handleMessageSafely(message) {
     return;
   }
 
-  // 3) EXTRA PAUSE: wait an additional 300ms to ensure internals are fully ready
+  // ───────────── DIAGNOSTIC LOG HERE ─────────────
+  // Before we actually call reply(), grab some info from the page:
+  try {
+    const page = getPuppeteerPage(client);
+    if (page) {
+      const info = await page.evaluate(() => {
+        const w = window.WWebJS || {};
+        return {
+          hasWWebJS: typeof window.WWebJS !== "undefined",
+          sendMessageType: typeof window.WWebJS.sendMessage,
+          wwebKeys: Object.keys(window.WWebJS || {}),
+          // If sendMessage exists, is it really a function?
+          sendMessageIsFunc: typeof window.WWebJS.sendMessage === "function"
+        };
+      });
+      console.log("[BROWSER CONTEXT] WWebJS check →", info);
+    } else {
+      console.log("[BROWSER CONTEXT] Could not find a Puppeteer Page object.");
+    }
+  } catch (diagErr) {
+    console.error("[DIAGNOSTIC ERROR] Could not evaluate in page:", diagErr);
+  }
+  // ───────────────────────────────────────────────────
+
+  // Insert a small extra pause (in case internals are still loading)
   await new Promise((r) => setTimeout(r, 300));
 
-  // 4) Now that sendMessage is definitely ready, we can safely reply:
+  // Now try to reply (“hi” → “Hello!”)
   if (message.body.trim().toLowerCase() === "hi") {
     console.log(`[REPLYING] to ${message.from} → "Hello!"`);
     try {
@@ -127,6 +146,5 @@ async function handleMessageSafely(message) {
     }
   }
 }
-
 // Start Puppeteer + WhatsApp-Web.js
 client.initialize();
