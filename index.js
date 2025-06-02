@@ -132,10 +132,10 @@ async function handleMessageSafely(message) {
   }
   // ───────────────────────────────────────────────────
 
-  // Insert a small extra pause (in case internals are still loading)
-  await new Promise((r) => setTimeout(r, 300));
+  // Insert a longer pause (1 s instead of 300 ms)
+  await new Promise((r) => setTimeout(r, 1000));
 
-  // Now try to reply (“hi” → “Hello!”)
+  // Now call reply()
   if (message.body.trim().toLowerCase() === "hi") {
     console.log(`[REPLYING] to ${message.from} → "Hello!"`);
     try {
