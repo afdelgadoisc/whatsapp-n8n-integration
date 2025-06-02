@@ -86,10 +86,10 @@ async function handleMessageSafely(message) {
 
   console.log(`[MSG RECEIVED] ${message.from}: ${message.body}`);
 
-  // Poll up to ~5 seconds for sendMessage to show up
-  let tries = 0;
-  const maxTries = 20;   // 20 × 250ms = 5000ms total
-  const delayMs = 250;
+  // 1) Poll for sendMessage up to ~5 seconds
+  let tries = 0,
+    maxTries = 20,
+    delayMs = 250;
   let ready = false;
 
   while (tries < maxTries) {
@@ -108,34 +108,19 @@ async function handleMessageSafely(message) {
     return;
   }
 
-  // ───────────── DIAGNOSTIC LOG HERE ─────────────
-  // Before we actually call reply(), grab some info from the page:
-  try {
-    const page = getPuppeteerPage(client);
-    if (page) {
-      const info = await page.evaluate(() => {
-        const w = window.WWebJS || {};
-        return {
-          hasWWebJS: typeof window.WWebJS !== "undefined",
-          sendMessageType: typeof window.WWebJS.sendMessage,
-          wwebKeys: Object.keys(window.WWebJS || {}),
-          // If sendMessage exists, is it really a function?
-          sendMessageIsFunc: typeof window.WWebJS.sendMessage === "function"
-        };
-      });
-      console.log("[BROWSER CONTEXT] WWebJS check →", info);
-    } else {
-      console.log("[BROWSER CONTEXT] Could not find a Puppeteer Page object.");
-    }
-  } catch (diagErr) {
-    console.error("[DIAGNOSTIC ERROR] Could not evaluate in page:", diagErr);
-  }
-  // ───────────────────────────────────────────────────
-
-  // Insert a longer pause (1 s instead of 300 ms)
+  // 2) EXTRA PAUSE: wait a full second for WAPI internals
   await new Promise((r) => setTimeout(r, 1000));
 
-  // Now call reply()
+  // 3) DEBUG: log arguments before sending
+  console.log("[DEBUG] About to send:", {
+    chatId: message.from,
+    text: "Hello!",
+    chatIdType: typeof message.from,
+    textType: typeof "Hello!",
+    textLength: "Hello!".length,
+  });
+
+  // 4) Now finally send
   if (message.body.trim().toLowerCase() === "hi") {
     console.log(`[REPLYING] to ${message.from} → "Hello!"`);
     try {
@@ -146,5 +131,6 @@ async function handleMessageSafely(message) {
     }
   }
 }
+
 // Start Puppeteer + WhatsApp-Web.js
 client.initialize();
