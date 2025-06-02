@@ -1,6 +1,7 @@
 # Use Node 18 (Debian Bullseye slim) so that we can install a system
 # Chromium that Puppeteer can point at.
-FROM node:18-bullseye-slim
+FROM node:20-bullseye-slim
+
 
 # 1) Install all libraries needed by Chromium/Puppeteer
 #    and the "chromium" package itself
