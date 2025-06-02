@@ -1,48 +1,35 @@
-// index.js
-const { Client, LocalAuth } = require("whatsapp-web.js");
-const qrcode = require("qrcode-terminal");
+const { Client, LocalAuth } = require('whatsapp-web.js');
+const qrcode = require('qrcode-terminal');
 
+// Usamos LocalAuth para que el token de sesión se guarde en ./session-data
 const client = new Client({
-  authStrategy: new LocalAuth({
-    clientId: "bot",
-    dataPath: "/app/session" // point to our writable session folder
-  }),
   puppeteer: {
     headless: true,
+    executablePath: '/usr/bin/chromium-browser', // o la ruta a Chrome en tu sistema
     args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-accelerated-2d-canvas",
-      "--no-first-run",
-      "--no-zygote",
-      "--single-process",
-      "--disable-gpu"
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu'
     ]
-  }
+  },
+  authStrategy: new LocalAuth({ clientId: "mi-bot" })
 });
 
-client.on("qr", (qr) => {
-  console.log("[QR RECEIVED]");
+client.on('qr', qr => {
   qrcode.generate(qr, { small: true });
+  console.log('Escanea este QR con WhatsApp para iniciar sesión.');
 });
 
-client.on("authenticated", () => console.log("[AUTHENTICATED]"));
-client.on("auth_failure", (msg) => console.error("[AUTH FAILURE]", msg));
-client.on("disconnected", (reason) => console.log("[DISCONNECTED]", reason));
+client.on('ready', () => {
+  console.log('✅ Cliente listo!');
+});
 
-client.on("ready", () => {
-  console.log("[CLIENT IS READY]");
-
-  // Now you can handle messages immediately
-  client.on("message", async (message) => {
-    console.log(`[MSG RECEIVED] ${message.from}: ${message.body}`);
-    if (message.body.toLowerCase().trim() === "hi") {
-      // This will no longer throw a “length of undefined” error
-      await message.reply("Hello!");
-      console.log("[REPLIED] ✅");
-    }
-  });
+client.on('message', msg => {
+  console.log(`Mensaje de ${msg.from}: ${msg.body}`);
+  if (msg.body.toLowerCase() === 'hola') {
+    msg.reply('¡Hola! ¿En qué puedo ayudarte?');
+  }
 });
 
 client.initialize();
