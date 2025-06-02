@@ -1,14 +1,12 @@
 version: '3.8'
 
 services:
-  whatsapp-n8n-integration:
+  baileys:
     build: .
-    container_name: whatsapp-n8n-integration
+    container_name: whatsapp-baileys
     volumes:
-      # Persist the auth/session data between restarts
-      - ./session:/usr/src/app/.wwebjs_auth
-    restart: unless-stopped
+      - ../baileys_data:/usr/src/app/baileys-auth-directory
+    working_dir: /usr/src/app
     environment:
-      - NODE_ENV=production
-      #- DEBUG=puppeteer:* # show Puppeteer internals
-      #- WWEBJS_LOGGING=debug # show whatsapp-web.js internals
+      - AUTH_FILE_PATH=/usr/src/app/baileys-auth-directory/baileys-auth.json
+    restart: unless-stopped

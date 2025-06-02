@@ -1,2 +1,8 @@
 node_modules
-session
+npm-debug.log
+baileys-auth.json
+.git
+.gitignore
+.dockerignore
+Dockerfile
+docker-compose.yml

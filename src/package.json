@@ -1,0 +1,13 @@
+{
+  "name": "baileys-whatsapp-service",
+  "version": "1.0.0",
+  "description": "Minimal Baileys WhatsApp client that persists session",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@adiwajshing/baileys": "^4.7.3",
+    "qrcode-terminal": "^0.12.0"
+  }
+}
