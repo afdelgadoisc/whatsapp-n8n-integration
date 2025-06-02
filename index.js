@@ -20,9 +20,9 @@ function getPuppeteerPage(client) {
 
 /**
  * Evaluates inside the browser:
- *   “Is window.WWebJS.sendMessage defined?”  
+ *   “Is window.WWebJS.sendMessage defined (and therefore ready)?”
  * We only return true once both:
- *   1. window.WWebJS exists, and  
+ *   1. window.WWebJS exists, and
  *   2. window.WWebJS.sendMessage is a function.
  */
 async function wwebjsReady(client) {
@@ -66,32 +66,24 @@ client.on("qr", (qr) => {
   qrcode.generate(qr, { small: true });
 });
 
-client.on("authenticated", () => {
-  console.log("[AUTHENTICATED]");
-});
-
-client.on("auth_failure", (msg) => {
-  console.error("[AUTH FAILURE]", msg);
-});
-
-client.on("disconnected", (reason) => {
-  console.log("[DISCONNECTED]", reason);
-});
+client.on("authenticated", () => console.log("[AUTHENTICATED]"));
+client.on("auth_failure", (msg) => console.error("[AUTH FAILURE]", msg));
+client.on("disconnected", (reason) => console.log("[DISCONNECTED]", reason));
 
 // === When the client is “ready,” set up the message listener ===
 
 client.on("ready", () => {
   console.log("[CLIENT IS READY]");
-
-  // Attach the message handler now. The handler itself will wait for sendMessage.
+  // Attach the message handler now; it will wait internally before replying
   client.on("message", handleMessageSafely);
 });
 
 /**
  * A wrapper around the real message handler that waits for WWebJS.sendMessage
+ * and then inserts a small extra delay before actually sending.
  */
 async function handleMessageSafely(message) {
-  // If either chat ID or text is missing, skip immediately
+  // 1) Skip if chat ID or text is missing
   if (!message.from || !message.body) {
     console.warn("[WARN] Missing from/body, skipping.");
     return;
@@ -99,14 +91,13 @@ async function handleMessageSafely(message) {
 
   console.log(`[MSG RECEIVED] ${message.from}: ${message.body}`);
 
-  // Poll for up to ~5 seconds (20 tries × 250ms) waiting for sendMessage
+  // 2) Poll for up to ~5 seconds (20 tries × 250ms) waiting for sendMessage
   let tries = 0;
   const maxTries = 20; // 20 × 250ms = 5000ms total
   const delayMs = 250;
   let ready = false;
 
   while (tries < maxTries) {
-    // Only return true when window.WWebJS.sendMessage is a function
     ready = await wwebjsReady(client);
     if (ready) break;
     await new Promise((r) => setTimeout(r, delayMs));
@@ -122,7 +113,10 @@ async function handleMessageSafely(message) {
     return;
   }
 
-  // Now that sendMessage is guaranteed to exist, we can safely reply:
+  // 3) EXTRA PAUSE: wait an additional 300ms to ensure internals are fully ready
+  await new Promise((r) => setTimeout(r, 300));
+
+  // 4) Now that sendMessage is definitely ready, we can safely reply:
   if (message.body.trim().toLowerCase() === "hi") {
     console.log(`[REPLYING] to ${message.from} → "Hello!"`);
     try {
