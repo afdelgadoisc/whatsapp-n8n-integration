@@ -1,14 +1,19 @@
-# 1. Start from Node 18 (or 20, if you like)
+# ───────────────────────────────────────────────────────────────────────────────
+# 1) Use Node 18 (Bullseye‐slim) as our base
+#    If you prefer Node 20, you could use node:20-bullseye-slim instead.
 FROM node:18-bullseye-slim
 
-# 2. Create a session folder and ensure permissions
-RUN mkdir -p /app/session && \
-  chown node:node /app/session && \
-  chmod 700 /app/session
+# ───────────────────────────────────────────────────────────────────────────────
+# 2) Create a dedicated session folder for LocalAuth and set permissions
+RUN mkdir -p /app/session \
+  && chown node:node /app/session \
+  && chmod 700 /app/session
 
-# 3. Install all the libraries Chromium needs
+# ───────────────────────────────────────────────────────────────────────────────
+# 3) Install all the OS packages Chromium/Puppeteer need, plus git
 RUN apt-get update && \
   apt-get install -y \
+  git \              
   gconf-service \
   libgbm-dev \
   libasound2 \
@@ -50,15 +55,27 @@ RUN apt-get update && \
   wget && \
   rm -rf /var/lib/apt/lists/*
 
-# 4. Set working dir and copy only package files first
+# ───────────────────────────────────────────────────────────────────────────────
+# 4) Switch to the “node” user for better security (optional but recommended)
+USER node
 WORKDIR /app
-COPY package*.json ./
 
-# 5. Install from the Docker-friendly fork of whatsapp-web.js
+# ───────────────────────────────────────────────────────────────────────────────
+# 5) Copy package.json + package-lock.json (if you have one) first,
+#    then run npm install. Because we installed git above,
+#    npm can now clone whatsapp-web.js from GitHub properly.
+COPY --chown=node:node package*.json ./
 RUN npm install
 
-# 6. Copy the rest of your code
-COPY . .
+# ───────────────────────────────────────────────────────────────────────────────
+# 6) Copy the rest of your application code
+COPY --chown=node:node . .
 
-# 7. Run your bot code
+# ───────────────────────────────────────────────────────────────────────────────
+# 7) Expose any ports you need (if your bot has a webserver; otherwise omit)
+EXPOSE 3000
+
+# ───────────────────────────────────────────────────────────────────────────────
+# 8) Start your bot
 CMD ["node", "index.js"]
+# ───────────────────────────────────────────────────────────────────────────────
